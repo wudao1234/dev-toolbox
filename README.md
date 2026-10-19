@@ -19,6 +19,7 @@ npm run build      # 生产构建
 | 文本对比 | `/tools/text-diff` | 基于 LCS 的逐行 diff，支持忽略空白/空行 |
 | JSON 工具 | `/tools/json-tool` | 格式化、校验（含行列定位）、压缩、语义对比 |
 | 随机数据生成器 | `/tools/mock-data` | 生成姓名/身份证/手机号/地址，身份证校验位符合 GB 11643 算法 |
+| 二维码工具 | `/tools/qrcode` | 生成（中文/容错级别/颜色）与图片解码（qrcode + jsQR） |
 
 ## 新增一个工具
 

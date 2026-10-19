@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { CodeWorkingOutline, GitCompareOutline, PeopleOutline } from '@vicons/ionicons5'
+import { CodeWorkingOutline, GitCompareOutline, PeopleOutline, QrCodeOutline } from '@vicons/ionicons5'
 
 /**
  * 工具注册表：新增工具时在这里登记一条，
@@ -40,5 +40,13 @@ export const tools: ToolMeta[] = [
     icon: PeopleOutline,
     keywords: ['mock', '随机', '身份证', '手机号', '姓名', '地址', '测试数据'],
     component: () => import('@/tools/mock-data/MockDataView.vue'),
+  },
+  {
+    path: '/tools/qrcode',
+    title: '二维码工具',
+    description: '二维码生成（支持中文、容错级别、颜色定制）与图片解码',
+    icon: QrCodeOutline,
+    keywords: ['qr', '二维码', '生成', '解码', '扫码', 'qrcode'],
+    component: () => import('@/tools/qrcode/QrCodeView.vue'),
   },
 ]
