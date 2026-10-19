@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Naive UI 组件内部使用自身样式，这里只补充布局级样式 */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+/* 等宽字体工具区域 */
+.mono {
+  font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
