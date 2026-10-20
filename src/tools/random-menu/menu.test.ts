@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   cutoffDate,
+  mergeTags,
   parseDishes,
   pickDishes,
   recentDishIds,
@@ -22,6 +23,21 @@ function seqRng(values: number[]) {
 /** 递增 id，便于断言 */
 let testId = 0
 const nextId = () => `id-${++testId}`
+
+describe('mergeTags', () => {
+  it('标签池在前，菜品中的新标签追加在后', () => {
+    const dishes = [d('a', ['素']), d('b', ['下饭菜', '荤'])]
+    expect(mergeTags(['荤', '素'], dishes)).toEqual(['荤', '素', '下饭菜'])
+  })
+
+  it('保持出现顺序去重', () => {
+    expect(mergeTags(['荤', '荤', '素'], [d('a', ['素', '汤'])])).toEqual(['荤', '素', '汤'])
+  })
+
+  it('池中的空白标签被忽略', () => {
+    expect(mergeTags(['荤', '  ', '素'], [])).toEqual(['荤', '素'])
+  })
+})
 
 describe('serializeDishes / parseDishes', () => {
   it('导出后可完整导入（往返一致）', () => {

@@ -26,6 +26,23 @@ function defaultNewId(): string {
   return crypto.randomUUID?.() ?? `${Date.now()}-${++idCounter}`
 }
 
+/**
+ * 合并标签池与菜品实际使用的标签（保持出现顺序去重）。
+ * 标签池在前，菜品中尚未入池的标签追加在后。
+ */
+export function mergeTags(pool: readonly string[], dishes: readonly Dish[]): string[] {
+  const merged: string[] = []
+  for (const t of pool) {
+    if (t.trim() && !merged.includes(t)) merged.push(t)
+  }
+  for (const dish of dishes) {
+    for (const t of dish.tags) {
+      if (!merged.includes(t)) merged.push(t)
+    }
+  }
+  return merged
+}
+
 /** 导出为 JSON 文本（不含 id，只保留菜名与标签） */
 export function serializeDishes(dishes: readonly Dish[]): string {
   return JSON.stringify(

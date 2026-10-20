@@ -20,6 +20,7 @@ import {
 import { copyText } from '@/utils/clipboard'
 import {
   cutoffDate,
+  mergeTags,
   parseDishes,
   pickDishes,
   recentDishIds,
@@ -33,6 +34,7 @@ const message = useMessage()
 
 const DISHES_KEY = 'random-menu:dishes'
 const HISTORY_KEY = 'random-menu:history'
+const TAGS_KEY = 'random-menu:tags'
 
 const SAMPLE_DISHES: Dish[] = [
   { id: 'sample-1', name: '红烧肉', tags: ['荤'] },
@@ -72,8 +74,36 @@ function newId(): string {
 const dishes = ref<Dish[]>(load(DISHES_KEY, SAMPLE_DISHES))
 watch(dishes, (v) => save(DISHES_KEY, v), { deep: true })
 
+/** 标签池：用户维护的可选标签，菜品用过的标签也会自动并入 */
+const tagPool = ref<string[]>(load(TAGS_KEY, ['荤', '素', '汤']))
+watch(tagPool, (v) => save(TAGS_KEY, v), { deep: true })
+
+function addTagsToPool(tags: readonly string[]) {
+  for (const t of tags) {
+    if (!tagPool.value.includes(t)) tagPool.value.push(t)
+  }
+}
+
 const newName = ref('')
-const newTags = ref('')
+const selectedTags = ref<string[]>([])
+
+function toggleTag(tag: string) {
+  const i = selectedTags.value.indexOf(tag)
+  if (i >= 0) selectedTags.value.splice(i, 1)
+  else selectedTags.value.push(tag)
+}
+
+const showNewTagInput = ref(false)
+const newTagName = ref('')
+
+function createTag() {
+  const tag = newTagName.value.trim()
+  if (!tag) return
+  addTagsToPool([tag])
+  if (!selectedTags.value.includes(tag)) selectedTags.value.push(tag)
+  newTagName.value = ''
+  showNewTagInput.value = false
+}
 
 function addDish() {
   const name = newName.value.trim()
@@ -85,13 +115,9 @@ function addDish() {
     message.warning('这道菜已在菜谱中')
     return
   }
-  const tags = newTags.value
-    .split(/[,，、\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-  dishes.value.push({ id: newId(), name, tags })
+  dishes.value.push({ id: newId(), name, tags: [...selectedTags.value] })
   newName.value = ''
-  newTags.value = ''
+  selectedTags.value = []
 }
 
 function removeDish(id: string) {
@@ -100,6 +126,7 @@ function removeDish(id: string) {
 
 function resetSample() {
   dishes.value = SAMPLE_DISHES.map((x) => ({ ...x, id: newId() }))
+  tagPool.value = ['荤', '素', '汤']
   message.success('已恢复示例菜谱')
 }
 
@@ -114,6 +141,7 @@ function doImport(text: string) {
     return
   }
   dishes.value.push(...imported)
+  addTagsToPool(imported.flatMap((x) => x.tags))
   message.success(`已导入 ${imported.length} 道菜${skipped ? `，跳过 ${skipped} 道重名` : ''}`)
 }
 
@@ -164,16 +192,8 @@ function tagStyle(tag: string) {
   return TAG_STYLES[h % TAG_STYLES.length]
 }
 
-/** 菜谱中出现过的所有标签（保持出现顺序去重） */
-const allTags = computed(() => {
-  const seen: string[] = []
-  for (const dish of dishes.value) {
-    for (const t of dish.tags) {
-      if (!seen.includes(t)) seen.push(t)
-    }
-  }
-  return seen
-})
+/** 可选标签：标签池 + 菜品实际使用的标签（保持出现顺序去重） */
+const allTags = computed(() => mergeTags(tagPool.value, dishes.value))
 
 // ---- 抽取设置 ----
 const totalCount = ref(3)
@@ -345,12 +365,39 @@ const recentHistory = computed(() => {
       <input ref="fileInput" type="file" accept=".json,.txt" class="hidden" @change="importFile" />
 
       <div class="flex flex-col gap-2">
-        <n-input v-model:value="newName" placeholder="菜名，如：鱼香肉丝" @keyup.enter="addDish" />
         <div class="flex gap-2">
-          <n-input v-model:value="newTags" placeholder="标签，如：荤（多个用逗号分隔）" @keyup.enter="addDish" />
+          <n-input v-model:value="newName" placeholder="菜名，如：鱼香肉丝" @keyup.enter="addDish" />
           <n-button secondary @click="addDish">
             <template #icon><n-icon><AddOutline /></n-icon></template>
             添加
+          </n-button>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-xs text-neutral-400">标签：</span>
+          <button
+            v-for="tag in allTags"
+            :key="tag"
+            type="button"
+            class="rounded-full border px-2.5 py-1 text-xs font-medium transition-all"
+            :class="selectedTags.includes(tag)
+              ? `${tagStyle(tag)} border-transparent shadow-sm`
+              : 'border-neutral-200 text-neutral-400 hover:border-neutral-300 hover:text-neutral-600 dark:border-neutral-700 dark:hover:border-neutral-500 dark:hover:text-neutral-300'"
+            @click="toggleTag(tag)"
+          >
+            {{ tag }}
+          </button>
+          <n-input
+            v-if="showNewTagInput"
+            v-model:value="newTagName"
+            size="tiny"
+            class="!w-24"
+            placeholder="新标签"
+            @keyup.enter="createTag"
+            @blur="createTag"
+          />
+          <n-button v-else size="tiny" quaternary @click="showNewTagInput = true">
+            <template #icon><n-icon><AddOutline /></n-icon></template>
+            新标签
           </n-button>
         </div>
       </div>
