@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { CodeWorkingOutline, GitCompareOutline, PeopleOutline, QrCodeOutline } from '@vicons/ionicons5'
+import { CodeWorkingOutline, GitCompareOutline, PeopleOutline, QrCodeOutline, RestaurantOutline } from '@vicons/ionicons5'
 
 /**
  * 工具注册表：新增工具时在这里登记一条，
@@ -48,5 +48,13 @@ export const tools: ToolMeta[] = [
     icon: QrCodeOutline,
     keywords: ['qr', '二维码', '生成', '解码', '扫码', 'qrcode'],
     component: () => import('@/tools/qrcode/QrCodeView.vue'),
+  },
+  {
+    path: '/tools/random-menu',
+    title: '随机菜单',
+    description: '从可维护的菜谱中随机抽取指定数量的菜，支持荤素配额与近期不重复',
+    icon: RestaurantOutline,
+    keywords: ['菜单', '随机', '菜谱', '吃什么', '抽签', '抽菜', '干饭'],
+    component: () => import('@/tools/random-menu/RandomMenuView.vue'),
   },
 ]
