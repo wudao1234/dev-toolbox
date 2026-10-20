@@ -196,7 +196,7 @@ function tagStyle(tag: string) {
 const allTags = computed(() => mergeTags(tagPool.value, dishes.value))
 
 // ---- 抽取设置 ----
-const totalCount = ref(3)
+const totalCount = ref(2)
 const cooldownDays = ref(3)
 const quotas = ref<Record<string, number>>({})
 
