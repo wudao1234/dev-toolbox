@@ -232,10 +232,11 @@ const totalCount = ref(2)
 const cooldownDays = ref(3)
 const quotas = ref<Record<string, number>>({})
 
-// 新标签出现时默认配额 0
+// 新标签出现时设置默认配额：荤、素各 1 道，其余不限
+const DEFAULT_QUOTAS: Record<string, number> = { 荤: 1, 素: 1 }
 watch(allTags, (tags) => {
   for (const t of tags) {
-    if (!(t in quotas.value)) quotas.value[t] = 0
+    if (!(t in quotas.value)) quotas.value[t] = DEFAULT_QUOTAS[t] ?? 0
   }
 }, { immediate: true })
 
