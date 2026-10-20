@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, defineComponent, h, ref, watch, type Component } from 'vue'
 import {
   NButton,
   NIcon,
@@ -10,11 +10,14 @@ import {
 } from 'naive-ui'
 import {
   AddOutline,
+  CafeOutline,
   ClipboardOutline,
   CloudUploadOutline,
   CopyOutline,
   DiceOutline,
   DownloadOutline,
+  FishOutline,
+  LeafOutline,
   TrashOutline,
 } from '@vicons/ionicons5'
 import { copyText } from '@/utils/clipboard'
@@ -192,6 +195,35 @@ function tagStyle(tag: string) {
   return TAG_STYLES[h % TAG_STYLES.length]
 }
 
+// ---- 标签图标：内置标签用图标展示，未知标签回退为文字 ----
+const TAG_ICONS: Record<string, Component> = {
+  荤: FishOutline,
+  素: LeafOutline,
+  汤: CafeOutline,
+}
+
+function tagIcon(tag: string): Component | null {
+  return TAG_ICONS[tag] ?? null
+}
+
+/** 彩色标签徽章（带图标或文字），供结果卡片 / 配额区 / 菜谱列表复用 */
+const TagChip = defineComponent({
+  props: { tag: { type: String, required: true } },
+  setup(props) {
+    return () =>
+      h(
+        'span',
+        {
+          class: `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tagStyle(props.tag)}`,
+          title: props.tag,
+        },
+        tagIcon(props.tag)
+          ? [h(NIcon, { size: 12 }, () => h(tagIcon(props.tag)!))]
+          : [props.tag],
+      )
+  },
+})
+
 /** 可选标签：标签池 + 菜品实际使用的标签（保持出现顺序去重） */
 const allTags = computed(() => mergeTags(tagPool.value, dishes.value))
 
@@ -286,7 +318,7 @@ const recentHistory = computed(() => {
           <div v-if="allTags.length" class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <span class="text-neutral-500 dark:text-neutral-400">分类配额（0 为不限）：</span>
             <label v-for="tag in allTags" :key="tag" class="flex items-center gap-1.5">
-              <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="tagStyle(tag)">{{ tag }}</span>
+              <TagChip :tag="tag" />
               <n-input-number v-model:value="quotas[tag]" :min="0" :max="20" class="w-20" size="small" />
             </label>
           </div>
@@ -315,7 +347,7 @@ const recentHistory = computed(() => {
                 {{ i + 1 }}
               </span>
               <span class="font-medium">{{ dish.name }}</span>
-              <span v-for="t in dish.tags" :key="t" class="ml-auto rounded-full px-2 py-0.5 text-xs font-medium" :class="tagStyle(t)">{{ t }}</span>
+              <TagChip v-for="t in dish.tags" :key="t" :tag="t" class="ml-auto" />
             </div>
           </div>
         </div>
@@ -378,13 +410,15 @@ const recentHistory = computed(() => {
             v-for="tag in allTags"
             :key="tag"
             type="button"
-            class="rounded-full border px-2.5 py-1 text-xs font-medium transition-all"
+            :title="tag"
+            class="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all"
             :class="selectedTags.includes(tag)
               ? `${tagStyle(tag)} border-transparent shadow-sm`
               : 'border-neutral-200 text-neutral-400 hover:border-neutral-300 hover:text-neutral-600 dark:border-neutral-700 dark:hover:border-neutral-500 dark:hover:text-neutral-300'"
             @click="toggleTag(tag)"
           >
-            {{ tag }}
+            <n-icon v-if="tagIcon(tag)" :size="13"><component :is="tagIcon(tag)" /></n-icon>
+            <template v-else>{{ tag }}</template>
           </button>
           <n-input
             v-if="showNewTagInput"
@@ -409,7 +443,7 @@ const recentHistory = computed(() => {
           class="group flex items-center gap-2 rounded-lg border border-neutral-100 px-3 py-1.5 text-sm transition-colors hover:border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:border-neutral-700 dark:hover:bg-neutral-800/60"
         >
           <span class="truncate">{{ dish.name }}</span>
-          <span v-for="t in dish.tags" :key="t" class="rounded-full px-2 py-0.5 text-xs font-medium" :class="tagStyle(t)">{{ t }}</span>
+          <TagChip v-for="t in dish.tags" :key="t" :tag="t" />
           <n-button class="ml-auto opacity-0 transition-opacity group-hover:opacity-100" size="tiny" quaternary @click="removeDish(dish.id)">
             <template #icon><n-icon><TrashOutline /></n-icon></template>
           </n-button>
