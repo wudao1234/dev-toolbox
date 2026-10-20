@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   cutoffDate,
+  parseDishes,
   pickDishes,
   recentDishIds,
   sample,
+  serializeDishes,
   todayString,
   type Dish,
   type PickRecord,
@@ -16,6 +18,71 @@ function seqRng(values: number[]) {
   let i = 0
   return () => values[i++ % values.length]
 }
+
+/** 递增 id，便于断言 */
+let testId = 0
+const nextId = () => `id-${++testId}`
+
+describe('serializeDishes / parseDishes', () => {
+  it('导出后可完整导入（往返一致）', () => {
+    const dishes: Dish[] = [
+      { id: '1', name: '红烧肉', tags: ['荤'] },
+      { id: '2', name: '炒青菜', tags: ['素'] },
+    ]
+    const text = serializeDishes(dishes)
+    expect(text).not.toContain('"id"')
+    const result = parseDishes(text, new Set(), nextId)
+    expect(result.skipped).toBe(0)
+    expect(result.dishes.map((x) => [x.name, x.tags])).toEqual([
+      ['红烧肉', ['荤']],
+      ['炒青菜', ['素']],
+    ])
+  })
+
+  it('支持纯菜名 JSON 数组', () => {
+    const result = parseDishes('["麻婆豆腐", "地三鲜"]', new Set(), nextId)
+    expect(result.dishes.map((x) => x.name)).toEqual(['麻婆豆腐', '地三鲜'])
+    expect(result.dishes.every((x) => x.tags.length === 0)).toBe(true)
+  })
+
+  it('支持文本行格式，多种分隔符', () => {
+    const text = '红烧肉，荤、下饭菜\n炒青菜,素\n紫菜蛋花汤、汤\n白米饭'
+    const result = parseDishes(text, new Set(), nextId)
+    expect(result.dishes).toHaveLength(4)
+    expect(result.dishes[0]).toMatchObject({ name: '红烧肉', tags: ['荤', '下饭菜'] })
+    expect(result.dishes[1]).toMatchObject({ name: '炒青菜', tags: ['素'] })
+    expect(result.dishes[2]).toMatchObject({ name: '紫菜蛋花汤', tags: ['汤'] })
+    expect(result.dishes[3]).toMatchObject({ name: '白米饭', tags: [] })
+  })
+
+  it('跳过空行', () => {
+    const result = parseDishes('红烧肉\n\n  \n炒青菜\n', new Set(), nextId)
+    expect(result.dishes.map((x) => x.name)).toEqual(['红烧肉', '炒青菜'])
+  })
+
+  it('与现有菜谱重名的条目跳过并计数', () => {
+    const result = parseDishes('红烧肉\n炒青菜\n新菜', new Set(['红烧肉', '炒青菜']), nextId)
+    expect(result.dishes.map((x) => x.name)).toEqual(['新菜'])
+    expect(result.skipped).toBe(2)
+  })
+
+  it('导入内容自身重名时只保留第一条', () => {
+    const result = parseDishes('红烧肉\n红烧肉', new Set(), nextId)
+    expect(result.dishes).toHaveLength(1)
+    expect(result.skipped).toBe(1)
+  })
+
+  it('以 [ 开头但不是合法 JSON 时回退为文本行解析', () => {
+    const result = parseDishes('[红烧肉,荤\n[炒青菜,素', new Set(), nextId)
+    expect(result.dishes.map((x) => x.name)).toEqual(['[红烧肉', '[炒青菜'])
+  })
+
+  it('空文本返回空结果', () => {
+    const result = parseDishes('  \n  ', new Set(), nextId)
+    expect(result.dishes).toHaveLength(0)
+    expect(result.skipped).toBe(0)
+  })
+})
 
 describe('todayString', () => {
   it('按本地时区格式化为 YYYY-MM-DD', () => {

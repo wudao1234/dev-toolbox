@@ -1,5 +1,5 @@
 /**
- * 随机菜单核心逻辑：菜谱抽取、荤素配额、近期不重复。
+ * 随机菜单核心逻辑：菜谱抽取、荤素配额、近期不重复、导入导出。
  * 纯函数模块，UI 与持久化不放在这里。
  */
 
@@ -18,6 +18,86 @@ export interface PickRecord {
 export interface Quota {
   tag: string
   count: number
+}
+
+let idCounter = 0
+
+function defaultNewId(): string {
+  return crypto.randomUUID?.() ?? `${Date.now()}-${++idCounter}`
+}
+
+/** 导出为 JSON 文本（不含 id，只保留菜名与标签） */
+export function serializeDishes(dishes: readonly Dish[]): string {
+  return JSON.stringify(
+    dishes.map(({ name, tags }) => ({ name, tags })),
+    null,
+    2,
+  )
+}
+
+export interface ImportResult {
+  /** 解析出的新菜（已去重，id 已生成） */
+  dishes: Dish[]
+  /** 因重名或为空被跳过的条数 */
+  skipped: number
+}
+
+/**
+ * 解析导入文本，支持两种格式：
+ * 1. JSON：serializeDishes 的产物，或 [{ "name": "...", "tags": [...] }] / ["菜名"] 数组；
+ * 2. 文本行：每行一道菜，`菜名,标签1,标签2`（逗号 / 中文逗号 / 顿号 / Tab 分隔）。
+ * 与 existingNames 重名的条目跳过。
+ */
+export function parseDishes(
+  text: string,
+  existingNames: ReadonlySet<string> = new Set(),
+  newId: () => string = defaultNewId,
+): ImportResult {
+  const trimmed = text.trim()
+  const rows: { name: string; tags: string[] }[] = []
+  let parsedJson = false
+
+  if (trimmed.startsWith('[')) {
+    try {
+      const arr: unknown = JSON.parse(trimmed)
+      if (Array.isArray(arr)) {
+        parsedJson = true
+        for (const item of arr) {
+          if (typeof item === 'string') {
+            rows.push({ name: item, tags: [] })
+          } else if (item && typeof item === 'object' && typeof (item as { name?: unknown }).name === 'string') {
+            const raw = item as { name: string; tags?: unknown }
+            const tags = Array.isArray(raw.tags)
+              ? raw.tags.filter((t): t is string => typeof t === 'string')
+              : []
+            rows.push({ name: raw.name, tags })
+          }
+        }
+      }
+    } catch {
+      // 非法 JSON 时回退为文本行解析
+    }
+  }
+
+  if (!parsedJson) {
+    for (const line of trimmed.split(/\r?\n/)) {
+      const parts = line.split(/[,，、\t]/).map((s) => s.trim())
+      if (parts[0]) rows.push({ name: parts[0], tags: parts.slice(1).filter(Boolean) })
+    }
+  }
+
+  const seen = new Set(existingNames)
+  const dishes: Dish[] = []
+  let skipped = 0
+  for (const row of rows) {
+    if (seen.has(row.name)) {
+      skipped++
+      continue
+    }
+    seen.add(row.name)
+    dishes.push({ id: newId(), name: row.name, tags: row.tags })
+  }
+  return { dishes, skipped }
 }
 
 /** 本地日期字符串 YYYY-MM-DD（按本地时区） */
